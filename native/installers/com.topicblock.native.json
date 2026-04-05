@@ -1,0 +1,9 @@
+{
+  "name": "com.topicblock.native",
+  "description": "TopicBlock native inference component",
+  "path": "/Users/amit/Development/TopicBlock/native/topicblock-native",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://becpgdglmadgjhpkhgfflihcjdnkcejn/"
+  ]
+}

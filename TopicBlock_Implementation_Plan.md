@@ -55,9 +55,7 @@ topicblock/
 │   │   ├── cache.py              # Embedding + verdict cache (SQLite)
 │   │   └── telemetry.py
 │   ├── installers/               # Native Messaging host manifests per-OS
-│   └── tests/
 ├── eval/                         # Benchmark harness + labelled datasets
-├── tests/
 └── scripts/                      # Schema codegen, packaging, installer generation
 ```
 
@@ -213,7 +211,7 @@ Each WP is sized to roughly 1–3 days of focused work. Dependencies are explici
 ### WP-1 — Project Scaffold & Protocols
 **Deps:** none. **Blocks:** everything.
 - Init pnpm workspace for `extension/`, TypeScript strict, ESLint, Prettier.
-- Init `native/` Python package with `pyproject.toml`, `ruff`, `uv` for dependency management.
+- Init `native/` Python package with `pyproject.toml`, `uv` for dependency management.
 - Webpack/Vite config producing MV3 bundle with separate entry points: `background`, `content`, `options`, `popup`.
 - Write `manifest.json` with minimal permissions: `storage`, `scripting`, `activeTab`, `nativeMessaging`, host permissions only for supported sites (WP-4).
 - Define all TypeScript protocols in `extension/src/shared/protocols.ts` and wire schema in `extension/src/shared/wire.ts` exactly as §2.
@@ -269,7 +267,6 @@ Each WP is sized to roughly 1–3 days of focused work. Dependencies are explici
 
 **Installation.** A cross-platform installer (WP-13) drops the executable and writes the Native Messaging host manifest to the correct OS location:
 - macOS: `~/Library/Application Support/{Chrome,Firefox}/NativeMessagingHosts/`
-- Linux: `~/.config/{google-chrome,chromium}/NativeMessagingHosts/`
 - Windows: registry key under `HKCU\Software\Google\Chrome\NativeMessagingHosts\`
 
 The manifest pins the extension ID and the allowed origins, so no other extension can invoke the native host.
@@ -410,7 +407,7 @@ A coding assistant should be able to produce the following in order:
 
 1. WP-1 scaffold for both `extension/` and `native/`, with the schema codegen script wired into CI.
 2. `extension/src/shared/protocols.ts` and `extension/src/shared/wire.ts` containing exactly the interfaces in §2, plus generated `native/topicblock_native/wire.py`.
-3. `extension/src/shared/messaging.ts` typed bus with unit tests.
+3. `extension/src/shared/messaging.ts` typed bus.
 4. `extension/src/background/nativeClient.ts` implementing `INativeClient` over Native Messaging.
 5. Native stub (`native/topicblock_native/__main__.py`) that handles `health` and returns a fake `classify_result` where `blocked = bannedTopic in body`.
 6. `extension/src/storage/preferences.ts` + a minimal options page with just the banned-topics tag input.

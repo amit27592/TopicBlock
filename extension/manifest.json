@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "TopicBlock",
+  "version": "0.1.0",
+  "description": "Client-side ML content filtering using local topic and sentiment analysis.",
+  "permissions": [
+    "storage",
+    "scripting",
+    "activeTab",
+    "nativeMessaging"
+  ],
+  "host_permissions": [
+    "https://www.reddit.com/*",
+    "https://old.reddit.com/*",
+    "https://news.ycombinator.com/*",
+    "https://www.youtube.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.reddit.com/*",
+        "https://old.reddit.com/*",
+        "https://news.ycombinator.com/*",
+        "https://www.youtube.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "TopicBlock"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "icons": {}
+}

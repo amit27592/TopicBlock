@@ -1,0 +1,5 @@
+#!/bin/bash
+# Dev launcher for the TopicBlock native component.
+# Chrome invokes this executable when the extension calls chrome.runtime.connectNative.
+# Requires: pip install -e . run once from the native/ directory.
+exec /opt/homebrew/anaconda3/bin/python3 -m topicblock_native "$@"

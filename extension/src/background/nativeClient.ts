@@ -76,7 +76,7 @@ export class NativeMessagingClient implements INativeClient {
     return response.payload;
   }
 
-  async dispose(): Promise<void> {
+  dispose(): Promise<void> {
     if (this.port) {
       this.port.disconnect();
       this.port = null;
@@ -85,6 +85,7 @@ export class NativeMessagingClient implements INativeClient {
       reject(new Error('NativeClient disposed'));
     }
     this.pending.clear();
+    return Promise.resolve();
   }
 
   private send(correlationId: string, msg: ClientMessage): Promise<NativeMessage> {

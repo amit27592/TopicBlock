@@ -8,6 +8,7 @@ import type {
   ClassifyRequest,
   ClassifyResponse,
   HealthStatus,
+  ModelInfo,
   UserPreferences,
 } from './protocols.js';
 
@@ -16,7 +17,8 @@ import type {
 export type ExtMessage =
   | { type: 'classify_segments'; payload: ClassifyRequest }
   | { type: 'get_health' }
-  | { type: 'update_prefs'; payload: UserPreferences };
+  | { type: 'update_prefs'; payload: UserPreferences }
+  | { type: 'list_models' };
 
 // ---- Responses from background → content scripts ----
 
@@ -24,6 +26,7 @@ export type ExtResponse =
   | { type: 'classify_result'; payload: ClassifyResponse }
   | { type: 'health_result'; payload: HealthStatus }
   | { type: 'prefs_ack' }
+  | { type: 'models_list'; payload: ModelInfo[] }
   | { type: 'error'; message: string };
 
 /**

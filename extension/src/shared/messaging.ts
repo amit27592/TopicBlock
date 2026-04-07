@@ -9,8 +9,10 @@ import type {
   ClassifyResponse,
   HealthStatus,
   ModelInfo,
+  NativeTelemetryEntry,
   UserPreferences,
 } from './protocols.js';
+import type { TelemetryEntry } from './telemetry.js';
 
 // ---- Messages from content scripts → background ----
 
@@ -18,7 +20,10 @@ export type ExtMessage =
   | { type: 'classify_segments'; payload: ClassifyRequest }
   | { type: 'get_health' }
   | { type: 'update_prefs'; payload: UserPreferences }
-  | { type: 'list_models' };
+  | { type: 'list_models' }
+  | { type: 'get_telemetry' }
+  | { type: 'telemetry_dump' }
+  | { type: 'clear_telemetry' };
 
 // ---- Responses from background → content scripts ----
 
@@ -27,6 +32,8 @@ export type ExtResponse =
   | { type: 'health_result'; payload: HealthStatus }
   | { type: 'prefs_ack' }
   | { type: 'models_list'; payload: ModelInfo[] }
+  | { type: 'telemetry_result'; payload: TelemetryEntry[] }
+  | { type: 'telemetry_dump_result'; payload: NativeTelemetryEntry[] }
   | { type: 'error'; message: string };
 
 /**

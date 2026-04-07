@@ -9,6 +9,7 @@ import type {
   HealthStatus,
   INativeClient,
   ModelInfo,
+  NativeTelemetryEntry,
   UserPreferences,
 } from '../shared/protocols.js';
 import type { ClientMessage, NativeMessage } from '../shared/wire.js';
@@ -74,6 +75,16 @@ export class NativeMessagingClient implements INativeClient {
       throw new Error(`Unexpected response type: ${response.type}`);
     }
     return response.payload;
+  }
+
+  async telemetryDump(): Promise<NativeTelemetryEntry[]> {
+    const id = this.nextId();
+    const msg: ClientMessage = { type: 'telemetry_dump' };
+    const response = await this.send(id, msg);
+    if (response.type !== 'telemetry_dump_result') {
+      throw new Error(`Unexpected response type: ${response.type}`);
+    }
+    return response.payload.entries;
   }
 
   dispose(): Promise<void> {

@@ -10,7 +10,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-
 # ---- Shared sub-types ----
 
 @dataclass
@@ -75,6 +74,14 @@ class UserPreferences:
     hoverToReveal: bool
     perSiteOverrides: dict[str, dict[str, Any]] = field(default_factory=dict)
 
+@dataclass
+class NativeTelemetryEntry:
+    ts: float
+    stage: str
+    segmentId: str
+    latencyMs: float
+    source: str
+
 
 # ---- Wire message envelopes ----
 
@@ -95,6 +102,10 @@ class WireListModels:
 @dataclass
 class WireHealth:
     type: Literal["health"]
+
+@dataclass
+class WireTelemetryDump:
+    type: Literal["telemetry_dump"]
 
 @dataclass
 class WireClassifyResult:
@@ -119,5 +130,10 @@ class WireHealthResult:
 @dataclass
 class WireError:
     type: Literal["error"]
+    payload: dict[str, Any]
+
+@dataclass
+class WireTelemetryDumpResult:
+    type: Literal["telemetry_dump_result"]
     payload: dict[str, Any]
 

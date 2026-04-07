@@ -8,6 +8,7 @@ import type { ExtMessage, ExtResponse } from '../shared/messaging.js';
 import type { ClassifyRequest, UserPreferences } from '../shared/protocols.js';
 import { get as getPrefs, PREFS_KEY } from '../storage/preferences.js';
 import { push as pushBlocked } from '../storage/blockedItems.js';
+import * as telemetry from '../shared/telemetry.js';
 
 const nativeClient = new NativeMessagingClient();
 
@@ -16,7 +17,6 @@ async function initNative(): Promise<void> {
   try {
     await nativeClient.connect();
     const prefs = await getPrefs();
-    // Sync stored prefs so the native component has the correct topic embeddings
     await nativeClient.updatePreferences(prefs);
   } catch (err) {
     console.warn('[TopicBlock] Native component unavailable:', err);
@@ -32,11 +32,9 @@ chrome.runtime.onStartup.addListener(() => {
   void initNative();
 });
 
-// Also connect immediately (extension reload / dev)
 void initNative();
 
 // When preferences change in storage, push updated prefs to the native component.
-// This is the primary mechanism by which preferences.set() reaches the native side.
 chrome.storage.local.onChanged.addListener(
   (changes: Record<string, chrome.storage.StorageChange>) => {
     if (PREFS_KEY in changes && changes[PREFS_KEY].newValue != null) {
@@ -50,15 +48,22 @@ chrome.storage.local.onChanged.addListener(
   }
 );
 
-// In-browser message bus: content scripts / UI → background → native
+// In-browser message bus
 chrome.runtime.onMessage.addListener(
   (message: ExtMessage, _sender, sendResponse: (res: ExtResponse) => void) => {
     if (message.type === 'classify_segments') {
       const req: ClassifyRequest = message.payload;
-      nativeClient
-        .classify(req)
-        .then((res) => {
-          // Record blocked segments in the ring buffer for popup display
+      void (async () => {
+        try {
+          // Instrument the full native round-trip, recording one entry per segment.
+          const res = await telemetry.measureBatch(
+            'browser.classify_roundtrip',
+            req.segments.map((s) => s.id),
+            () => nativeClient.classify(req),
+            (result) => new Map(result.verdicts.map((v) => [v.segmentId, v])),
+          );
+
+          // Record blocked segments in the ring buffer for popup display.
           const blocked = res.verdicts.filter((v) => v.blocked);
           if (blocked.length > 0) {
             const site = req.segments[0]?.site ?? 'unknown';
@@ -73,15 +78,16 @@ chrome.runtime.onMessage.addListener(
                   ...(seg?.headline != null ? { headline: seg.headline } : {}),
                 };
                 return pushBlocked(item);
-              })
+              }),
             );
           }
+
           sendResponse({ type: 'classify_result', payload: res });
-        })
-        .catch((err: unknown) => {
+        } catch (err: unknown) {
           console.error('[TopicBlock] classify failed:', err);
           sendResponse({ type: 'error', message: String(err) });
-        });
+        }
+      })();
       return true;
     }
 
@@ -108,6 +114,26 @@ chrome.runtime.onMessage.addListener(
         .then((models) => sendResponse({ type: 'models_list', payload: models }))
         .catch((err: unknown) => sendResponse({ type: 'error', message: String(err) }));
       return true;
+    }
+
+    if (message.type === 'get_telemetry') {
+      // Synchronous — buffer lives in this module's scope
+      sendResponse({ type: 'telemetry_result', payload: telemetry.getAll() });
+      return false;
+    }
+
+    if (message.type === 'telemetry_dump') {
+      nativeClient
+        .telemetryDump()
+        .then((entries) => sendResponse({ type: 'telemetry_dump_result', payload: entries }))
+        .catch((err: unknown) => sendResponse({ type: 'error', message: String(err) }));
+      return true;
+    }
+
+    if (message.type === 'clear_telemetry') {
+      telemetry.clear();
+      sendResponse({ type: 'prefs_ack' }); // reuse ack; no dedicated type needed
+      return false;
     }
   }
 );

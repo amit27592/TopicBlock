@@ -1,7 +1,8 @@
 import { type ReactElement, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import type { ModelInfo, UserPreferences } from '../../shared/protocols.js';
+import type { ModelInfo, NativeTelemetryEntry, UserPreferences } from '../../shared/protocols.js';
 import { sendToBackground } from '../../shared/messaging.js';
+import type { TelemetryEntry } from '../../shared/telemetry.js';
 import {
   exportJSON,
   get as getPrefs,
@@ -418,6 +419,7 @@ function OptionsPage(): ReactElement {
   const [prefs, setPrefsState] = useState<UserPreferences | null>(null);
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [savedMs, setSavedMs] = useState<number>(0);
+  const [telemetryCount, setTelemetryCount] = useState<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -426,9 +428,14 @@ function OptionsPage(): ReactElement {
       .then((res) => {
         if (res.type === 'models_list') setModels(res.payload);
       })
-      .catch(() => {
-        // Native component not running — model dropdowns fall back to current value
+      .catch(() => {});
+    // Poll browser telemetry count
+    const interval = setInterval(() => {
+      void sendToBackground({ type: 'get_telemetry' }).then((res) => {
+        if (res.type === 'telemetry_result') setTelemetryCount(res.payload.length);
       });
+    }, 2000);
+    return () => clearInterval(interval);
   }, []);
 
   async function update(partial: Partial<UserPreferences>): Promise<void> {
@@ -478,6 +485,38 @@ function OptionsPage(): ReactElement {
     const next = await resetPrefs();
     setPrefsState(next);
     setSavedMs(Date.now());
+  }
+
+  async function handleExportTelemetry(): Promise<void> {
+    // Fetch browser entries from background ring buffer
+    const browserRes = await sendToBackground({ type: 'get_telemetry' }).catch(() => null);
+    const browserEntries: TelemetryEntry[] =
+      browserRes?.type === 'telemetry_result' ? browserRes.payload : [];
+
+    // Fetch native entries via telemetry_dump wire message
+    const nativeRes = await sendToBackground({ type: 'telemetry_dump' }).catch(() => null);
+    const nativeEntries: NativeTelemetryEntry[] =
+      nativeRes?.type === 'telemetry_dump_result' ? nativeRes.payload : [];
+
+    const combined = {
+      exportedAt: new Date().toISOString(),
+      bufferSizes: { browser: browserEntries.length, native: nativeEntries.length },
+      browser: browserEntries,
+      native: nativeEntries,
+    };
+
+    const blob = new Blob([JSON.stringify(combined, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `topicblock-telemetry-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleClearTelemetry(): Promise<void> {
+    await sendToBackground({ type: 'clear_telemetry' }).catch(() => {});
+    setTelemetryCount(0);
   }
 
   if (!prefs) {
@@ -689,6 +728,51 @@ function OptionsPage(): ReactElement {
             onChange={(e) => void onFileChange(e)}
             style={{ display: 'none' }}
           />
+        </Section>
+
+        {/* Telemetry */}
+        <Section title="Telemetry">
+          <p style={{ margin: 0, fontSize: 13, color: C.muted }}>
+            Per-segment stage timings collected from both browser and native pipelines. Never
+            auto-uploaded — export for offline evaluation only.
+          </p>
+          <div style={{ fontSize: 13, color: C.text }}>
+            Browser buffer:{' '}
+            <strong>
+              {telemetryCount} / 500
+            </strong>{' '}
+            entries
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => void handleExportTelemetry()}
+              style={{
+                padding: '6px 14px',
+                background: C.primary,
+                color: 'white',
+                border: 'none',
+                borderRadius: 6,
+                cursor: 'pointer',
+                fontSize: 13,
+              }}
+            >
+              Export Telemetry JSON
+            </button>
+            <button
+              onClick={() => void handleClearTelemetry()}
+              style={{
+                padding: '6px 14px',
+                background: 'white',
+                color: C.muted,
+                border: `1px solid ${C.border}`,
+                borderRadius: 6,
+                cursor: 'pointer',
+                fontSize: 13,
+              }}
+            >
+              Clear Browser Buffer
+            </button>
+          </div>
         </Section>
       </div>
     </div>

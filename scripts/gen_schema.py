@@ -50,11 +50,13 @@ LITERAL_TYPES: dict[str, str] = {
     '"update_prefs"': 'Literal["update_prefs"]',
     '"list_models"': 'Literal["list_models"]',
     '"health"': 'Literal["health"]',
+    '"telemetry_dump"': 'Literal["telemetry_dump"]',
     '"classify_result"': 'Literal["classify_result"]',
     '"prefs_ack"': 'Literal["prefs_ack"]',
     '"models_list"': 'Literal["models_list"]',
     '"health_result"': 'Literal["health_result"]',
     '"error"': 'Literal["error"]',
+    '"telemetry_dump_result"': 'Literal["telemetry_dump_result"]',
 }
 
 # Classes to emit, in order (must be named interfaces in the TS source)
@@ -66,6 +68,7 @@ GENERATE_FROM_PROTOCOLS = [
     "HealthStatus",
     "ModelInfo",
     "UserPreferences",
+    "NativeTelemetryEntry",
 ]
 
 GENERATE_FROM_WIRE = [
@@ -73,11 +76,13 @@ GENERATE_FROM_WIRE = [
     "WireUpdatePrefs",
     "WireListModels",
     "WireHealth",
+    "WireTelemetryDump",
     "WireClassifyResult",
     "WirePrefsAck",
     "WireModelsList",
     "WireHealthResult",
     "WireError",
+    "WireTelemetryDumpResult",
 ]
 
 # ---------------------------------------------------------------------------
@@ -229,7 +234,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Literal
-
 '''
 
 # Fields that need default_factory=dict (mutable default, dict type)

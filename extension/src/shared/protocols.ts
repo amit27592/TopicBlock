@@ -108,6 +108,15 @@ export interface ModelInfo {
   hwRequirements: { minRamMb: number; needsGpu: boolean };
 }
 
+// One timing record from the native pipeline. Stage names use a 'native.' prefix.
+export interface NativeTelemetryEntry {
+  ts: number;        // Unix ms at entry recording
+  stage: string;     // e.g. 'native.segment_classify', 'native.classify_total'
+  segmentId: string;
+  latencyMs: number;
+  source: string;    // always 'native'
+}
+
 // Transport-agnostic interface to the native component.
 export interface INativeClient {
   connect(): Promise<void>;
@@ -116,5 +125,6 @@ export interface INativeClient {
   updatePreferences(prefs: UserPreferences): Promise<void>;
   health(): Promise<HealthStatus>;
   listModels(): Promise<ModelInfo[]>;
+  telemetryDump(): Promise<NativeTelemetryEntry[]>;
   dispose(): Promise<void>;
 }

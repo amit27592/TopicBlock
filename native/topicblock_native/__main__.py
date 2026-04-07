@@ -21,14 +21,15 @@ import time
 from dataclasses import asdict
 from typing import Any
 
-from topicblock_native import __version__
+from topicblock_native import __version__, telemetry
+from topicblock_native.telemetry import TelemetryEntry
 from topicblock_native.wire import (
     ClassifyRequest,
     ClassifyResponse,
     HealthStatus,
     SegmentInput,
-    Verdict,
     UserPreferences,
+    Verdict,
 )
 
 logging.basicConfig(
@@ -138,8 +139,28 @@ def handle_classify(payload: dict[str, Any]) -> dict[str, Any]:
         perSiteOverrides={},
     )
 
-    verdicts = [_stub_classify_segment(s, prefs) for s in req.segments]
+    # Instrument per-segment classification with telemetry.measure().
+    # Lambda default-captures `s` to avoid the classic loop-variable capture bug.
+    verdicts = [
+        telemetry.measure(
+            "native.segment_classify",
+            s.id,
+            lambda seg=s: _stub_classify_segment(seg, prefs),
+        )
+        for s in req.segments
+    ]
+
     engine_latency = (time.perf_counter() - t0) * 1000
+
+    # Record a batch-level entry for the full classify handler.
+    telemetry.record(
+        TelemetryEntry(
+            ts=time.time() * 1000,
+            stage="native.classify_total",
+            segmentId=req.requestId,
+            latencyMs=engine_latency,
+        )
+    )
 
     response = ClassifyResponse(
         requestId=req.requestId,
@@ -192,6 +213,14 @@ def handle_list_models() -> dict[str, Any]:
     }
 
 
+def handle_telemetry_dump() -> dict[str, Any]:
+    """Return the native-side telemetry ring buffer as a wire message."""
+    return {
+        "type": "telemetry_dump_result",
+        "payload": {"entries": telemetry.dump()},
+    }
+
+
 # ---------------------------------------------------------------------------
 # Main loop
 # ---------------------------------------------------------------------------
@@ -201,6 +230,7 @@ HANDLERS = {
     "classify": handle_classify,
     "update_prefs": handle_update_prefs,
     "list_models": lambda _payload: handle_list_models(),
+    "telemetry_dump": lambda _payload: handle_telemetry_dump(),
 }
 
 

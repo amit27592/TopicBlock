@@ -1,0 +1,17 @@
+Metadata-Version: 2.4
+Name: topicblock-native
+Version: 0.1.0
+Summary: TopicBlock native inference component — ML backend for the browser extension.
+Requires-Python: >=3.11
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0; extra == "dev"
+Requires-Dist: pytest-cov; extra == "dev"
+Requires-Dist: ruff>=0.8; extra == "dev"
+Provides-Extra: ml
+Requires-Dist: torch>=2.2; extra == "ml"
+Requires-Dist: sentence-transformers>=3.0; extra == "ml"
+Requires-Dist: vaderSentiment>=3.3; extra == "ml"
+Requires-Dist: transformers>=4.40; extra == "ml"
+Requires-Dist: lxml>=5.0; extra == "ml"
+Requires-Dist: readability-lxml>=0.8; extra == "ml"
+Requires-Dist: fasttext-langdetect>=1.0; extra == "ml"

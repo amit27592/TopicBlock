@@ -1,0 +1,14 @@
+
+[dev]
+pytest>=8.0
+pytest-cov
+ruff>=0.8
+
+[ml]
+torch>=2.2
+sentence-transformers>=3.0
+vaderSentiment>=3.3
+transformers>=4.40
+lxml>=5.0
+readability-lxml>=0.8
+fasttext-langdetect>=1.0

@@ -7,21 +7,29 @@ writes framed JSON responses to stdout.
 Frame format: little-endian uint32 length prefix followed by UTF-8 JSON.
 Max message size: 1 MB (Chrome hard limit).
 
-WP-1 stub: handles `health` and `classify` (keyword matching, no ML).
-Real ML pipeline wired in WP-5 / WP-7 / WP-8.
+WP-6: Stub handlers replaced with the real Pipeline.  ML model loading is
+lazy — models are resolved by the registry on first use.  When ML extras
+are not installed, NullTopicModel / NullSentimentModel provide fail-open
+pass-through verdicts.
+
+Optional loopback server transport: run with ``--serve [--port N] [--token T]``
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import logging
 import struct
 import sys
+import tempfile
 import time
 from dataclasses import asdict
+from pathlib import Path
 from typing import Any
 
 from topicblock_native import __version__, telemetry
+from topicblock_native.pipeline import Pipeline
 from topicblock_native.telemetry import TelemetryEntry
 from topicblock_native.wire import (
     ClassifyRequest,
@@ -41,13 +49,43 @@ log = logging.getLogger("topicblock")
 
 MAX_MSG_BYTES = 1 * 1024 * 1024  # 1 MB Chrome limit
 
+# ---------------------------------------------------------------------------
+# Shared pipeline instance — initialised in main()
+# ---------------------------------------------------------------------------
+
+_pipeline: Pipeline | None = None
+
 # Current preferences (updated via update_prefs messages)
 _current_prefs: UserPreferences | None = None
+
+
+def _get_pipeline() -> Pipeline:
+    """Return the pipeline, creating it on first use (lazy init)."""
+    global _pipeline
+    if _pipeline is None:
+        _pipeline = Pipeline()
+    return _pipeline
+
+
+def _default_prefs() -> UserPreferences:
+    """Return sane defaults when no update_prefs message has arrived yet."""
+    return UserPreferences(
+        bannedTopics=[],
+        topicThreshold=0.5,
+        sentimentThreshold=-0.6,
+        sentimentEnabled=False,
+        topicModel="null",
+        sentimentModel="vader",
+        action="blur",
+        hoverToReveal=True,
+        perSiteOverrides={},
+    )
 
 
 # ---------------------------------------------------------------------------
 # Native Messaging I/O
 # ---------------------------------------------------------------------------
+
 
 def read_message() -> dict[str, Any] | None:
     """Read one length-prefixed JSON message from stdin. Returns None on EOF."""
@@ -75,35 +113,12 @@ def write_message(msg: dict[str, Any]) -> None:
 # Handlers
 # ---------------------------------------------------------------------------
 
+
 def handle_health() -> dict[str, Any]:
     return {
         "type": "health_result",
-        "payload": asdict(
-            HealthStatus(
-                ok=True,
-                version=__version__,
-                loadedTopicModel="stub",
-                loadedSentimentModel="stub",
-                device="cpu",
-                queueDepth=0,
-            )
-        ),
+        "payload": asdict(_get_pipeline().health()),
     }
-
-
-def _stub_classify_segment(seg: SegmentInput, prefs: UserPreferences) -> Verdict:
-    """WP-1 stub: block if any banned topic substring appears in the segment text."""
-    text = " ".join(filter(None, [seg.headline, seg.subtitle, seg.body])).lower()
-    matched = [t for t in prefs.bannedTopics if t.lower() in text]
-    blocked = len(matched) > 0
-    return Verdict(
-        segmentId=seg.id,
-        topics=[{"label": t, "score": 1.0} for t in matched],  # type: ignore[list-item]
-        sentiment=None,
-        blocked=blocked,
-        reasons=[f"keyword match: {t}" for t in matched],
-        latencyMs=0.0,
-    )
 
 
 def handle_classify(payload: dict[str, Any]) -> dict[str, Any]:
@@ -127,46 +142,26 @@ def handle_classify(payload: dict[str, Any]) -> dict[str, Any]:
         prefsVersion=payload.get("prefsVersion", 0),
     )
 
-    prefs = _current_prefs or UserPreferences(
-        bannedTopics=[],
-        topicThreshold=0.5,
-        sentimentThreshold=-0.6,
-        sentimentEnabled=False,
-        topicModel="stub",
-        sentimentModel="vader",
-        action="blur",
-        hoverToReveal=True,
-        perSiteOverrides={},
+    prefs = _current_prefs or _default_prefs()
+
+    # Delegate to the real pipeline.
+    response = telemetry.measure(
+        "native.classify_total",
+        req.requestId,
+        lambda: _get_pipeline().classify(req, prefs),
     )
 
-    # Instrument per-segment classification with telemetry.measure().
-    # Lambda default-captures `s` to avoid the classic loop-variable capture bug.
-    verdicts = [
-        telemetry.measure(
-            "native.segment_classify",
-            s.id,
-            lambda seg=s: _stub_classify_segment(seg, prefs),
+    # Record individual segment latencies in telemetry.
+    for verdict in response.verdicts:
+        telemetry.record(
+            TelemetryEntry(
+                ts=time.time() * 1000,
+                stage="native.segment_classify",
+                segmentId=verdict.segmentId,
+                latencyMs=verdict.latencyMs,
+            )
         )
-        for s in req.segments
-    ]
 
-    engine_latency = (time.perf_counter() - t0) * 1000
-
-    # Record a batch-level entry for the full classify handler.
-    telemetry.record(
-        TelemetryEntry(
-            ts=time.time() * 1000,
-            stage="native.classify_total",
-            segmentId=req.requestId,
-            latencyMs=engine_latency,
-        )
-    )
-
-    response = ClassifyResponse(
-        requestId=req.requestId,
-        verdicts=verdicts,
-        engineLatencyMs=engine_latency,
-    )
     return {"type": "classify_result", "payload": asdict(response)}
 
 
@@ -177,40 +172,26 @@ def handle_update_prefs(payload: dict[str, Any]) -> dict[str, Any]:
         topicThreshold=payload.get("topicThreshold", 0.5),
         sentimentThreshold=payload.get("sentimentThreshold", -0.6),
         sentimentEnabled=payload.get("sentimentEnabled", False),
-        topicModel=payload.get("topicModel", "stub"),
+        topicModel=payload.get("topicModel", "null"),
         sentimentModel=payload.get("sentimentModel", "vader"),
         action=payload.get("action", "blur"),
         hoverToReveal=payload.get("hoverToReveal", True),
         perSiteOverrides=payload.get("perSiteOverrides", {}),
     )
     log.debug("Preferences updated: %d banned topics", len(_current_prefs.bannedTopics))
+
+    # Pre-embed banned topics while the user isn't waiting for a classify.
+    try:
+        _get_pipeline().update_prefs(_current_prefs, payload.get("prefsVersion", 0))
+    except Exception:
+        log.warning("update_prefs: pipeline update failed", exc_info=True)
+
     return {"type": "prefs_ack", "payload": {"version": payload.get("prefsVersion", 0)}}
 
 
 def handle_list_models() -> dict[str, Any]:
-    return {
-        "type": "models_list",
-        "payload": [
-            {
-                "kind": "topic",
-                "name": "minilm-l6-v2",
-                "version": "stub",
-                "backbone": "sentence-transformers/all-MiniLM-L6-v2",
-                "maxSeqLen": 256,
-                "defaultThreshold": 0.5,
-                "hwRequirements": {"minRamMb": 512, "needsGpu": False},
-            },
-            {
-                "kind": "sentiment",
-                "name": "vader",
-                "version": "stub",
-                "backbone": "vaderSentiment",
-                "maxSeqLen": 512,
-                "defaultThreshold": -0.6,
-                "hwRequirements": {"minRamMb": 50, "needsGpu": False},
-            },
-        ],
-    }
+    models = [asdict(m) for m in _get_pipeline()._registry.list_models_info()]
+    return {"type": "models_list", "payload": models}
 
 
 def handle_telemetry_dump() -> dict[str, Any]:
@@ -222,7 +203,7 @@ def handle_telemetry_dump() -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# Main loop
+# Main loop — Native Messaging
 # ---------------------------------------------------------------------------
 
 HANDLERS = {
@@ -234,8 +215,14 @@ HANDLERS = {
 }
 
 
-def main() -> None:
-    log.info("TopicBlock native component started (stub v%s)", __version__)
+def run_native_messaging() -> None:
+    """Read–dispatch–write loop over stdin/stdout (Native Messaging)."""
+    log.info("TopicBlock native component started v%s (Native Messaging mode)", __version__)
+
+    # Eagerly create pipeline at startup so the first classify is not slow.
+    pipeline = _get_pipeline()
+    pipeline.warmup()
+
     while True:
         try:
             msg = read_message()
@@ -274,6 +261,78 @@ def main() -> None:
                 )
             except Exception:
                 break
+
+
+# ---------------------------------------------------------------------------
+# Main entry point
+# ---------------------------------------------------------------------------
+
+
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        prog="topicblock-native",
+        description="TopicBlock native inference component",
+    )
+    parser.add_argument(
+        "--serve",
+        action="store_true",
+        default=False,
+        help="Start the loopback HTTP server instead of Native Messaging mode",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=27463,
+        help="Port for the loopback server (default: 27463)",
+    )
+    parser.add_argument(
+        "--token",
+        type=str,
+        default=None,
+        help="Bearer token for loopback server auth (auto-generated if omitted)",
+    )
+    parser.add_argument(
+        "--cache-path",
+        type=Path,
+        default=Path("~/.topicblock/cache.db").expanduser(),
+        help="Path to the SQLite embedding cache",
+    )
+    return parser.parse_args()
+
+
+def main() -> None:
+    args = _parse_args()
+
+    if args.serve:
+        from topicblock_native.server import LoopbackServer
+
+        log.info("TopicBlock native component starting in loopback server mode")
+        pipeline = _get_pipeline()
+        pipeline.warmup()
+
+        server = LoopbackServer(
+            pipeline=pipeline,
+            port=args.port,
+            token=args.token,
+        )
+        server.start()
+
+        # Block the main thread indefinitely; the server runs in a daemon thread.
+        log.info("Loopback server running — press Ctrl-C to stop")
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            log.info("Interrupted — shutting down")
+        finally:
+            server.stop()
+            pipeline.close()
+    else:
+        try:
+            run_native_messaging()
+        finally:
+            if _pipeline is not None:
+                _pipeline.close()
 
 
 if __name__ == "__main__":

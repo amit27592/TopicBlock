@@ -41,7 +41,7 @@ class DistilBertSentimentModel(ISentimentModel):
             except ImportError:
                 device_str = "cpu"
                 
-            # pipeline() device argument: -1 for CPU, 0 for first GPU, or string aliases in newer versions
+            # pipeline() device arg: -1 for CPU, 0 for first GPU, or string alias
             device_arg: int | str = -1
             if device_str in ("cuda", "mps"):
                 device_arg = device_str

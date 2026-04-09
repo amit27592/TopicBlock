@@ -23,8 +23,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from topicblock_native.models.base import (
-    ITopicModel,
     ISentimentModel,
+    ITopicModel,
     NullSentimentModel,
     NullTopicModel,
 )

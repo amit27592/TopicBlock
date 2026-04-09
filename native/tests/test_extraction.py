@@ -328,7 +328,7 @@ class TestDetectLanguage:
     def test_non_english_known_text(self):
         """German text should NOT be classified as English (when model available)."""
         from topicblock_native.extraction import SUPPORTED_LANGS
-        from topicblock_native.extraction.langdetect import detect_language, _MODEL_AVAILABLE
+        from topicblock_native.extraction.langdetect import _MODEL_AVAILABLE, detect_language
 
         if not _MODEL_AVAILABLE:
             pytest.skip("fasttext-langdetect not installed")

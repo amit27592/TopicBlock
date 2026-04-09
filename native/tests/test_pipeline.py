@@ -7,10 +7,8 @@ fallback path, which is the fail-open guarantee of WP-6.
 
 from __future__ import annotations
 
-import tempfile
 from dataclasses import asdict
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -18,7 +16,6 @@ from topicblock_native.models.base import NullSentimentModel, NullTopicModel
 from topicblock_native.models.registry import ModelRegistry
 from topicblock_native.pipeline import Pipeline
 from topicblock_native.wire import ClassifyRequest, ClassifyResponse, SegmentInput, UserPreferences
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -41,7 +38,9 @@ def _make_prefs(**kwargs) -> UserPreferences:
     return UserPreferences(**defaults)
 
 
-def _make_segment(seg_id: str = "seg001", body: str = "Hello world", lang: str | None = "en") -> SegmentInput:
+def _make_segment(
+    seg_id: str = "seg001", body: str = "Hello world", lang: str | None = "en"
+) -> SegmentInput:
     return SegmentInput(
         id=seg_id,
         body=body,
@@ -192,18 +191,6 @@ class TestUpdatePrefs:
         With NullTopicModel the vectors will all be zeros, but they should be
         stored under the given prefs_version.
         """
-        prefs = _make_prefs(bannedTopics=["climate change", "AI"], topicThreshold=0.5)
-        prefs_with_version = UserPreferences(
-            bannedTopics=prefs.bannedTopics,
-            topicThreshold=prefs.topicThreshold,
-            sentimentThreshold=prefs.sentimentThreshold,
-            sentimentEnabled=prefs.sentimentEnabled,
-            topicModel=prefs.topicModel,
-            sentimentModel=prefs.sentimentModel,
-            action=prefs.action,
-            hoverToReveal=prefs.hoverToReveal,
-            perSiteOverrides={},
-        )
         # Simulate prefs_version=7 by calling update_prefs then checking cache.
         # We need to patch prefsVersion onto the classify request.
         req = ClassifyRequest(
@@ -245,13 +232,14 @@ class TestUpdatePrefs:
         assert isinstance(pipeline._topic_model, NullTopicModel)
 
     def test_update_prefs_swaps_sentiment_model(self, pipeline: Pipeline) -> None:
-        """Changing sentimentModel in prefs should hot-swap the model."""
+        """Changing sentimentModel to an unknown name should fall back to NullSentimentModel."""
         assert pipeline._active_sentiment_model_name == "null"
 
-        prefs = _make_prefs(sentimentModel="vader")  # not registered → null fallback
+        # "nonexistent-sentiment" is not registered → registry falls back to NullSentimentModel
+        prefs = _make_prefs(sentimentModel="nonexistent-sentiment")
         pipeline.update_prefs(prefs, 1)
 
-        assert pipeline._active_sentiment_model_name == "vader"
+        assert pipeline._active_sentiment_model_name == "nonexistent-sentiment"
         assert isinstance(pipeline._sentiment_model, NullSentimentModel)
 
 
@@ -327,7 +315,6 @@ class TestClose:
     def test_close_twice_does_not_raise(self, pipeline: Pipeline) -> None:
         pipeline.close()
         # SQLite may raise on a second close — pipeline.close() should handle it.
-        try:
+        import contextlib
+        with contextlib.suppress(Exception):
             pipeline.close()
-        except Exception:
-            pass  # acceptable

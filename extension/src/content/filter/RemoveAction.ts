@@ -3,7 +3,7 @@ import type { IFilterAction, UserPreferences, Verdict } from '../../shared/proto
 const displayStateMap = new WeakMap<HTMLElement, string>();
 
 export const RemoveAction: IFilterAction = {
-  apply(el: HTMLElement, verdict: Verdict, prefs: UserPreferences): void {
+  apply(el: HTMLElement, _verdict: Verdict, _prefs: UserPreferences): void {
     if (displayStateMap.has(el)) return;
     displayStateMap.set(el, el.style.display);
     

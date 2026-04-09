@@ -95,7 +95,7 @@ function handleNewElements(els: HTMLElement[]): void {
     const body = extracted.body ?? extracted.headline ?? '';
 
     // Compute segment ID async — enqueue once it resolves
-    computeSegmentId(site, domPath, body).then((id) => {
+    void computeSegmentId(site, domPath, body).then((id) => {
       if (seenIds.has(id)) return;
       seenIds.add(id);
 

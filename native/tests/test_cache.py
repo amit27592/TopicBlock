@@ -7,8 +7,6 @@ Numpy-dependent tests are skipped if numpy is not installed.
 
 from __future__ import annotations
 
-import json
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -22,11 +20,11 @@ from topicblock_native.cache import EmbeddingCache, _text_key
 np = pytest.importorskip("numpy", reason="numpy required for cache tests")
 
 
-def _rand_vec(dim: int = 16) -> "np.ndarray":
+def _rand_vec(dim: int = 16) -> np.ndarray:
     return np.random.default_rng(42).random(dim).astype("float32")
 
 
-def _rand_mat(n: int, dim: int = 16) -> "np.ndarray":
+def _rand_mat(n: int, dim: int = 16) -> np.ndarray:
     return np.random.default_rng(0).random((n, dim)).astype("float32")
 
 

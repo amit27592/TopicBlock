@@ -15,10 +15,8 @@ are skipped if 127.0.0.1 is unreachable.
 from __future__ import annotations
 
 import json
-import threading
 import time
 import urllib.request
-from http.client import HTTPConnection
 from io import BytesIO
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -29,7 +27,6 @@ import pytest
 from topicblock_native.models.registry import ModelRegistry
 from topicblock_native.pipeline import Pipeline
 from topicblock_native.server import DEFAULT_PORT, LoopbackServer
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -126,7 +123,7 @@ class TestHandlerAuth:
         payload = json.dumps({"type": "health"}).encode()
         raw = self._make_raw_post(payload, token="my-token")
         req = _FakeRequest(raw)
-        handler = HandlerCls(request=req, client_address=("127.0.0.1", 9999), server=MagicMock())
+        HandlerCls(request=req, client_address=("127.0.0.1", 9999), server=MagicMock())
         resp = req.output.getvalue()
         # Should not contain "unauthorized".
         assert b"unauthorized" not in resp
@@ -136,7 +133,7 @@ class TestHandlerAuth:
         payload = json.dumps({"type": "health"}).encode()
         raw = self._make_raw_post(payload, token="wrong-token")
         req = _FakeRequest(raw)
-        handler = HandlerCls(request=req, client_address=("127.0.0.1", 9999), server=MagicMock())
+        HandlerCls(request=req, client_address=("127.0.0.1", 9999), server=MagicMock())
         resp = req.output.getvalue()
         assert b"401" in resp or b"unauthorized" in resp
 
@@ -153,7 +150,7 @@ class TestHandlerAuth:
         ).encode("ascii")
         raw = headers + payload
         req = _FakeRequest(raw)
-        handler = HandlerCls(request=req, client_address=("127.0.0.1", 9999), server=MagicMock())
+        HandlerCls(request=req, client_address=("127.0.0.1", 9999), server=MagicMock())
         resp = req.output.getvalue()
         assert b"401" in resp or b"unauthorized" in resp
 
@@ -170,7 +167,7 @@ class TestHandlerDispatch:
         HandlerCls = _make_handler(pipeline, "tok")
         raw = self._make_get("/health")
         req = _FakeRequest(raw)
-        handler = HandlerCls(request=req, client_address=("127.0.0.1", 9999), server=MagicMock())
+        HandlerCls(request=req, client_address=("127.0.0.1", 9999), server=MagicMock())
         resp = req.output.getvalue()
         assert b"200" in resp
         assert b"ok" in resp
@@ -179,7 +176,7 @@ class TestHandlerDispatch:
         HandlerCls = _make_handler(pipeline, "tok")
         raw = self._make_get("/unknown")
         req = _FakeRequest(raw)
-        handler = HandlerCls(request=req, client_address=("127.0.0.1", 9999), server=MagicMock())
+        HandlerCls(request=req, client_address=("127.0.0.1", 9999), server=MagicMock())
         resp = req.output.getvalue()
         assert b"404" in resp
 

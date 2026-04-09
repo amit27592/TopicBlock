@@ -35,9 +35,9 @@ class MiniLMTopicModel(ITopicModel):
             raise RuntimeError("numpy is not installed")
         
         self._model_name = "sentence-transformers/all-MiniLM-L6-v2"
-        self._model: "SentenceTransformer" | None = None
+        self._model: SentenceTransformer | None = None
 
-    def _ensure_loaded(self) -> "SentenceTransformer":
+    def _ensure_loaded(self) -> SentenceTransformer:
         if self._model is None:
             log.info("Loading topic model: %s", self._model_name)
             self._model = SentenceTransformer(self._model_name)

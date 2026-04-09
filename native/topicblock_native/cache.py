@@ -68,19 +68,19 @@ def _text_key(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def _pack(array: "np.ndarray") -> bytes:
+def _pack(array: np.ndarray) -> bytes:
     """Serialise a float32 ndarray to raw bytes."""
     return array.astype("float32").tobytes()
 
 
-def _unpack(blob: bytes, dim: int) -> "np.ndarray":
+def _unpack(blob: bytes, dim: int) -> np.ndarray:
     """Deserialise raw bytes back to a 1-D float32 ndarray of length ``dim``."""
     import numpy as np  # local import — optional dep
 
     return np.frombuffer(blob, dtype="float32").reshape(dim)
 
 
-def _unpack_2d(blob: bytes, n: int, dim: int) -> "np.ndarray":
+def _unpack_2d(blob: bytes, n: int, dim: int) -> np.ndarray:
     """Deserialise raw bytes back to a (n, dim) float32 ndarray."""
     import numpy as np
 
@@ -118,7 +118,7 @@ class EmbeddingCache:
     # Segment embedding cache
     # ------------------------------------------------------------------
 
-    def get(self, text: str) -> "np.ndarray | None":
+    def get(self, text: str) -> np.ndarray | None:
         """
         Return the cached embedding for ``text``, or ``None`` if absent.
 
@@ -139,7 +139,7 @@ class EmbeddingCache:
         self._conn.commit()
         return _unpack(row[0], row[1])
 
-    def put(self, text: str, embedding: "np.ndarray") -> None:
+    def put(self, text: str, embedding: np.ndarray) -> None:
         """
         Store an embedding in the cache, evicting old entries if at capacity.
         """
@@ -188,7 +188,7 @@ class EmbeddingCache:
     # Topic vector cache (per preferences version)
     # ------------------------------------------------------------------
 
-    def get_topic_vectors(self, prefs_version: int) -> "np.ndarray | None":
+    def get_topic_vectors(self, prefs_version: int) -> np.ndarray | None:
         """
         Return the ``(N, D)`` float32 topic-embedding matrix for
         ``prefs_version``, or ``None`` if not cached.
@@ -219,7 +219,7 @@ class EmbeddingCache:
     def put_topic_vectors(
         self,
         prefs_version: int,
-        vectors: "np.ndarray",
+        vectors: np.ndarray,
         topics: list[str],
     ) -> None:
         """

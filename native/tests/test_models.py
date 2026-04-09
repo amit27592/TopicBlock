@@ -3,14 +3,13 @@ Unit tests for WP-7 and WP-8 models.
 """
 
 from unittest.mock import MagicMock, patch
-import pytest
 
+from topicblock_native.models.base import NullSentimentModel, NullTopicModel
 from topicblock_native.models.registry import registry
-from topicblock_native.models.base import NullTopicModel, NullSentimentModel
-from topicblock_native.models.topic_minilm import MiniLMTopicModel
-from topicblock_native.models.topic_bge import BGETopicModel
-from topicblock_native.models.sentiment_vader import VaderSentimentModel
 from topicblock_native.models.sentiment_distilbert import DistilBertSentimentModel
+from topicblock_native.models.sentiment_vader import VaderSentimentModel
+from topicblock_native.models.topic_bge import BGETopicModel
+from topicblock_native.models.topic_minilm import MiniLMTopicModel
 
 
 def test_registry_null_fallbacks():

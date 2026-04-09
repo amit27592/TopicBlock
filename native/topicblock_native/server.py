@@ -82,7 +82,7 @@ class _Handler(BaseHTTPRequestHandler):
     """
 
     # Set by LoopbackServer before the server starts.
-    pipeline: "Pipeline"
+    pipeline: Pipeline
     auth_token: str
 
     # ------------------------------------------------------------------
@@ -129,7 +129,7 @@ class _Handler(BaseHTTPRequestHandler):
             }
 
         if msg_type == "classify":
-            from topicblock_native.wire import ClassifyRequest, SegmentInput, UserPreferences
+            from topicblock_native.wire import ClassifyRequest, SegmentInput
 
             req = ClassifyRequest(
                 requestId=payload["requestId"],
@@ -195,7 +195,7 @@ class _Handler(BaseHTTPRequestHandler):
 # ---------------------------------------------------------------------------
 
 
-def _prefs_from_dict(d: dict[str, Any]) -> "UserPreferences":
+def _prefs_from_dict(d: dict[str, Any]) -> UserPreferences:
     from topicblock_native.wire import UserPreferences
 
     return UserPreferences(
@@ -231,7 +231,7 @@ class LoopbackServer:
 
     def __init__(
         self,
-        pipeline: "Pipeline",
+        pipeline: Pipeline,
         port: int = DEFAULT_PORT,
         token: str | None = None,
     ) -> None:

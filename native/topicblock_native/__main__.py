@@ -22,7 +22,6 @@ import json
 import logging
 import struct
 import sys
-import tempfile
 import time
 from dataclasses import asdict
 from pathlib import Path
@@ -33,11 +32,8 @@ from topicblock_native.pipeline import Pipeline
 from topicblock_native.telemetry import TelemetryEntry
 from topicblock_native.wire import (
     ClassifyRequest,
-    ClassifyResponse,
-    HealthStatus,
     SegmentInput,
     UserPreferences,
-    Verdict,
 )
 
 logging.basicConfig(
@@ -123,7 +119,6 @@ def handle_health() -> dict[str, Any]:
 
 def handle_classify(payload: dict[str, Any]) -> dict[str, Any]:
     global _current_prefs
-    t0 = time.perf_counter()
 
     req = ClassifyRequest(
         requestId=payload["requestId"],
@@ -297,7 +292,10 @@ def _parse_args() -> argparse.Namespace:
         default=Path("~/.topicblock/cache.db").expanduser(),
         help="Path to the SQLite embedding cache",
     )
-    return parser.parse_args()
+    # Use parse_known_args because Chrome passes the extension ID as a positional
+    # argument when launching the native host.
+    args, _ = parser.parse_known_args()
+    return args
 
 
 def main() -> None:

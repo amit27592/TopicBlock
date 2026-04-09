@@ -8,8 +8,8 @@ Public API
 """
 
 from topicblock_native.models.base import (
-    ITopicModel,
     ISentimentModel,
+    ITopicModel,
     NullSentimentModel,
     NullTopicModel,
 )

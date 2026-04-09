@@ -3,7 +3,7 @@ import type { IFilterAction, UserPreferences, Verdict } from '../../shared/proto
 const stateMap = new WeakMap<HTMLElement, { visibility: string; opacity: string; pointerEvents: string }>();
 
 export const HideAction: IFilterAction = {
-  apply(el: HTMLElement, verdict: Verdict, prefs: UserPreferences): void {
+  apply(el: HTMLElement, _verdict: Verdict, _prefs: UserPreferences): void {
     if (stateMap.has(el)) return;
     stateMap.set(el, {
       visibility: el.style.visibility,

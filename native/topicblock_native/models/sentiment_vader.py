@@ -25,9 +25,9 @@ class VaderSentimentModel(ISentimentModel):
     def __init__(self) -> None:
         if SentimentIntensityAnalyzer is None:
             raise RuntimeError("vaderSentiment is not installed")
-        self._analyzer: "SentimentIntensityAnalyzer" | None = None
+        self._analyzer: SentimentIntensityAnalyzer | None = None
 
-    def _ensure_loaded(self) -> "SentimentIntensityAnalyzer":
+    def _ensure_loaded(self) -> SentimentIntensityAnalyzer:
         if self._analyzer is None:
             log.info("Loading VADER sentiment analyzer")
             self._analyzer = SentimentIntensityAnalyzer()

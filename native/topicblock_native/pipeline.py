@@ -33,17 +33,18 @@ from __future__ import annotations
 
 import logging
 import time
-from dataclasses import asdict
 from pathlib import Path
 
 from topicblock_native import __version__
 from topicblock_native.cache import EmbeddingCache
 from topicblock_native.extraction import preprocess
 from topicblock_native.models import (
-    ITopicModel,
     ISentimentModel,
+    ITopicModel,
     NullSentimentModel,
     NullTopicModel,
+)
+from topicblock_native.models import (
     registry as _global_registry,
 )
 from topicblock_native.models.registry import ModelRegistry
@@ -56,6 +57,8 @@ from topicblock_native.wire import (
 )
 
 log = logging.getLogger(__name__)
+
+_DEFAULT_CACHE_PATH = Path("~/.topicblock/cache.db").expanduser()
 
 # ---------------------------------------------------------------------------
 # Device detection (optional — only meaningful when torch is available)
@@ -130,7 +133,7 @@ class Pipeline:
 
     def __init__(
         self,
-        cache_path: Path = Path("~/.topicblock/cache.db").expanduser(),
+        cache_path: Path = _DEFAULT_CACHE_PATH,
         registry: ModelRegistry | None = None,
     ) -> None:
         global _DEVICE
@@ -255,7 +258,7 @@ class Pipeline:
             blocked = False
 
             # Topic matching.
-            for label, score in zip(topic_labels, cos_scores):
+            for label, score in zip(topic_labels, cos_scores, strict=False):
                 topics_out.append({"label": label, "score": float(score)})
                 if score >= prefs.topicThreshold:
                     blocked = True

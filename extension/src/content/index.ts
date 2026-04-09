@@ -173,7 +173,7 @@ function sendBatch(segments: ContentSegment[]): void {
   };
 
   chrome.runtime.sendMessage(
-    { type: 'classify', payload: request },
+    { type: 'classify_segments', payload: request },
     (response: ClassifyResponse | undefined) => {
       if (chrome.runtime.lastError) {
         // Native client unavailable — fail open, no UI disruption

@@ -27,7 +27,9 @@
         "https://news.ycombinator.com/*",
         "https://www.youtube.com/*"
       ],
-      "js": ["content.js"],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_idle"
     }
   ],
@@ -39,5 +41,19 @@
     "page": "options.html",
     "open_in_tab": true
   },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "*.js.map",
+        "chunks/*.js.map"
+      ],
+      "matches": [
+        "https://www.reddit.com/*",
+        "https://old.reddit.com/*",
+        "https://news.ycombinator.com/*",
+        "https://www.youtube.com/*"
+      ]
+    }
+  ],
   "icons": {}
 }

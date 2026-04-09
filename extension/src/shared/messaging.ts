@@ -23,7 +23,8 @@ export type ExtMessage =
   | { type: 'list_models' }
   | { type: 'get_telemetry' }
   | { type: 'telemetry_dump' }
-  | { type: 'clear_telemetry' };
+  | { type: 'clear_telemetry' }
+  | { type: 'record_override'; payload: TelemetryEntry };
 
 // ---- Responses from background → content scripts ----
 

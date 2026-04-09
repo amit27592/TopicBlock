@@ -135,5 +135,11 @@ chrome.runtime.onMessage.addListener(
       sendResponse({ type: 'prefs_ack' }); // reuse ack; no dedicated type needed
       return false;
     }
+
+    if (message.type === 'record_override') {
+      telemetry.record(message.payload);
+      sendResponse({ type: 'prefs_ack' });
+      return false;
+    }
   }
 );

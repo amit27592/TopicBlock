@@ -18,6 +18,9 @@ import type { ClassifyRequest, ClassifyResponse, ContentSegment } from '../share
 import { findAdapter } from './adapters/index.js';
 import { SegmentObserver } from './segmentation/observer.js';
 import { computeSegmentId, getDomPath } from './segmentation/segmentId.js';
+import { get as getPrefs, getVersion, subscribe as subscribePrefs } from '../storage/preferences.js';
+import type { UserPreferences } from '../shared/protocols.js';
+import { BlurAction, HideAction, RemoveAction } from './filter/index.js';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -31,6 +34,7 @@ const seenIds = new Set<string>();
 const pending: ContentSegment[] = [];
 let batchTimer: ReturnType<typeof setTimeout> | null = null;
 let prefsVersion = 0; // bumped by WP-2 preference changes
+let activePrefs: UserPreferences | null = null;
 
 // ─── Adapter selection ────────────────────────────────────────────────────────
 
@@ -47,6 +51,22 @@ if (!adapter) {
 
 function init(): void {
   if (!adapter) return;
+
+  // Load initial preferences
+  void getPrefs().then((p) => {
+    activePrefs = p;
+  });
+  void getVersion().then((v) => {
+    prefsVersion = v;
+  });
+
+  // Track preference changes live
+  subscribePrefs((newPrefs) => {
+    activePrefs = newPrefs;
+    void getVersion().then((v) => {
+      prefsVersion = v;
+    });
+  });
 
   // Initial scan
   const initialEls = adapter.findSegments(document);
@@ -174,15 +194,35 @@ function sendBatch(segments: ContentSegment[]): void {
 
 function handleVerdicts(
   response: ClassifyResponse,
-  _segments: ContentSegment[],
+  segments: ContentSegment[],
 ): void {
+  const currentPrefs = activePrefs;
+  if (!currentPrefs) return;
+  
+  const site = adapter?.siteId ?? '';
+  const siteOverrides = currentPrefs.perSiteOverrides?.[site] || {};
+  const effectivePrefs = { ...currentPrefs, ...siteOverrides } as UserPreferences;
+  
+  let actionImpl = BlurAction;
+  if (effectivePrefs.action === 'hide') actionImpl = HideAction;
+  if (effectivePrefs.action === 'remove') actionImpl = RemoveAction;
+
+  const segmentMap = new Map(segments.map(s => [s.id, s]));
+
   for (const verdict of response.verdicts) {
     if (verdict.blocked) {
       console.log(
         `[TopicBlock] blocked segment=${verdict.segmentId}`,
         verdict.reasons,
       );
+      
+      const segment = segmentMap.get(verdict.segmentId);
+      if (segment) {
+        const el = segment.element.deref();
+        if (el) {
+          actionImpl.apply(el, verdict, effectivePrefs);
+        }
+      }
     }
   }
-  // WP-9: loop over verdict.blocked → look up segment by id → apply IFilterAction
 }

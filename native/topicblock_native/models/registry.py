@@ -71,13 +71,53 @@ class _SentimentRegistration:
 # at module load time — only when the model is first requested.
 
 _TOPIC_REGISTRATIONS: dict[str, _TopicRegistration] = {
-    # WP-7 will add: "topicblock_native.models.topic_minilm" → MiniLMTopicModel
-    # WP-7 will add: "topicblock_native.models.topic_bge"    → BGETopicModel
+    "minilm-l6-v2": _TopicRegistration(
+        name="minilm-l6-v2",
+        version="1.0.0",
+        backbone="sentence-transformers/all-MiniLM-L6-v2",
+        max_seq_len=512,
+        default_threshold=0.5,
+        min_ram_mb=500,
+        needs_gpu=False,
+        module="topicblock_native.models.topic_minilm",
+        class_name="MiniLMTopicModel",
+    ),
+    "bge-small-en-v1.5": _TopicRegistration(
+        name="bge-small-en-v1.5",
+        version="1.0.0",
+        backbone="BAAI/bge-small-en-v1.5",
+        max_seq_len=512,
+        default_threshold=0.5,
+        min_ram_mb=500,
+        needs_gpu=False,
+        module="topicblock_native.models.topic_bge",
+        class_name="BGETopicModel",
+    ),
 }
 
 _SENTIMENT_REGISTRATIONS: dict[str, _SentimentRegistration] = {
-    # WP-8 will add: "topicblock_native.models.sentiment_vader"      → VaderSentimentModel
-    # WP-8 will add: "topicblock_native.models.sentiment_distilbert" → DistilBertSentimentModel
+    "vader": _SentimentRegistration(
+        name="vader",
+        version="1.0.0",
+        backbone="vaderSentiment",
+        max_seq_len=512,
+        default_threshold=-0.6,
+        min_ram_mb=0,
+        needs_gpu=False,
+        module="topicblock_native.models.sentiment_vader",
+        class_name="VaderSentimentModel",
+    ),
+    "distilbert-sst2": _SentimentRegistration(
+        name="distilbert-sst2",
+        version="1.0.0",
+        backbone="distilbert-base-uncased-finetuned-sst-2-english",
+        max_seq_len=512,
+        default_threshold=-0.6,
+        min_ram_mb=500,
+        needs_gpu=False,
+        module="topicblock_native.models.sentiment_distilbert",
+        class_name="DistilBertSentimentModel",
+    ),
 }
 
 

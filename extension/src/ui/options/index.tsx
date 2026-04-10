@@ -420,6 +420,7 @@ function OptionsPage(): ReactElement {
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [savedMs, setSavedMs] = useState<number>(0);
   const [telemetryCount, setTelemetryCount] = useState<number>(0);
+  const [cacheSize, setCacheSize] = useState<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -429,10 +430,13 @@ function OptionsPage(): ReactElement {
         if (res.type === 'models_list') setModels(res.payload);
       })
       .catch(() => {});
-    // Poll browser telemetry count
+    // Poll browser telemetry count and cache size
     const interval = setInterval(() => {
       void sendToBackground({ type: 'get_telemetry' }).then((res) => {
         if (res.type === 'telemetry_result') setTelemetryCount(res.payload.length);
+      });
+      void sendToBackground({ type: 'get_verdict_cache_stats' }).then((res) => {
+        if (res.type === 'verdict_cache_stats') setCacheSize(res.payload.size);
       });
     }, 2000);
     return () => clearInterval(interval);
@@ -517,6 +521,11 @@ function OptionsPage(): ReactElement {
   async function handleClearTelemetry(): Promise<void> {
     await sendToBackground({ type: 'clear_telemetry' }).catch(() => {});
     setTelemetryCount(0);
+  }
+
+  async function handleClearVerdictCache(): Promise<void> {
+    await sendToBackground({ type: 'clear_verdict_cache' }).catch(() => {});
+    setCacheSize(0);
   }
 
   if (!prefs) {
@@ -742,6 +751,25 @@ function OptionsPage(): ReactElement {
               {telemetryCount} / 500
             </strong>{' '}
             entries
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 13, color: C.text }}>
+            <span>
+              Verdict cache: <strong>{cacheSize.toLocaleString()} / 5,000</strong> entries
+            </span>
+            <button
+              onClick={() => void handleClearVerdictCache()}
+              style={{
+                padding: '4px 12px',
+                background: 'white',
+                color: C.muted,
+                border: `1px solid ${C.border}`,
+                borderRadius: 6,
+                cursor: 'pointer',
+                fontSize: 13,
+              }}
+            >
+              Clear Cache
+            </button>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button

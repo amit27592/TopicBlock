@@ -24,7 +24,9 @@ export type ExtMessage =
   | { type: 'get_telemetry' }
   | { type: 'telemetry_dump' }
   | { type: 'clear_telemetry' }
-  | { type: 'record_override'; payload: TelemetryEntry };
+  | { type: 'record_override'; payload: TelemetryEntry }
+  | { type: 'clear_verdict_cache' }
+  | { type: 'get_verdict_cache_stats' };
 
 // ---- Responses from background → content scripts ----
 
@@ -35,6 +37,7 @@ export type ExtResponse =
   | { type: 'models_list'; payload: ModelInfo[] }
   | { type: 'telemetry_result'; payload: TelemetryEntry[] }
   | { type: 'telemetry_dump_result'; payload: NativeTelemetryEntry[] }
+  | { type: 'verdict_cache_stats'; payload: { size: number } }
   | { type: 'error'; message: string };
 
 /**

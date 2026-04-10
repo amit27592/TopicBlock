@@ -9,6 +9,7 @@ import type { ClassifyRequest, UserPreferences } from '../shared/protocols.js';
 import { get as getPrefs, PREFS_KEY } from '../storage/preferences.js';
 import { push as pushBlocked } from '../storage/blockedItems.js';
 import * as telemetry from '../shared/telemetry.js';
+import * as verdictCache from './verdictCache.js';
 
 const nativeClient = new NativeMessagingClient();
 
@@ -55,18 +56,49 @@ chrome.runtime.onMessage.addListener(
       const req: ClassifyRequest = message.payload;
       void (async () => {
         try {
-          // Instrument the full native round-trip, recording one entry per segment.
-          const segmentTextMap = new Map(req.segments.map((s) => [s.id, s.body]));
-          const res = await telemetry.measureBatch(
-            'browser.classify_roundtrip',
-            req.segments.map((s) => s.id),
-            () => nativeClient.classify(req),
-            (result) => new Map(result.verdicts.map((v) => [v.segmentId, v])),
-            segmentTextMap,
-          );
+          // Split segments into cache hits and misses.
+          const hits: typeof req.segments = [];
+          const misses: typeof req.segments = [];
+          for (const seg of req.segments) {
+            const cached = verdictCache.get(seg.id, req.prefsVersion);
+            if (cached !== undefined) {
+              hits.push(seg);
+            } else {
+              misses.push(seg);
+            }
+          }
+
+          // Fetch verdicts for cache misses from the native component.
+          let freshVerdicts: import('../shared/protocols.js').Verdict[] = [];
+          let engineLatencyMs = 0;
+          if (misses.length > 0) {
+            const missReq: ClassifyRequest = { ...req, segments: misses };
+            const segmentTextMap = new Map(misses.map((s) => [s.id, s.body]));
+            const nativeRes = await telemetry.measureBatch(
+              'browser.classify_roundtrip',
+              misses.map((s) => s.id),
+              () => nativeClient.classify(missReq),
+              (result) => new Map(result.verdicts.map((v) => [v.segmentId, v])),
+              segmentTextMap,
+            );
+            freshVerdicts = nativeRes.verdicts;
+            engineLatencyMs = nativeRes.engineLatencyMs;
+            // Store fresh verdicts in the cache.
+            for (const verdict of freshVerdicts) {
+              verdictCache.set(verdict, req.prefsVersion);
+            }
+          }
+
+          // Collect cached verdicts for hits.
+          const cachedVerdicts = hits
+            .map((s) => verdictCache.get(s.id, req.prefsVersion))
+            .filter((v): v is import('../shared/protocols.js').Verdict => v !== undefined);
+
+          const allVerdicts = [...cachedVerdicts, ...freshVerdicts];
+          const res = { requestId: req.requestId, verdicts: allVerdicts, engineLatencyMs };
 
           // Record blocked segments in the ring buffer for popup display.
-          const blocked = res.verdicts.filter((v) => v.blocked);
+          const blocked = freshVerdicts.filter((v) => v.blocked);
           if (blocked.length > 0) {
             const site = req.segments[0]?.site ?? 'unknown';
             void Promise.all(
@@ -141,6 +173,17 @@ chrome.runtime.onMessage.addListener(
     if (message.type === 'record_override') {
       telemetry.record(message.payload);
       sendResponse({ type: 'prefs_ack' });
+      return false;
+    }
+
+    if (message.type === 'clear_verdict_cache') {
+      verdictCache.clear();
+      sendResponse({ type: 'prefs_ack' });
+      return false;
+    }
+
+    if (message.type === 'get_verdict_cache_stats') {
+      sendResponse({ type: 'verdict_cache_stats', payload: { size: verdictCache.size() } });
       return false;
     }
   }

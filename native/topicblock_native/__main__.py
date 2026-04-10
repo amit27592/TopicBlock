@@ -199,6 +199,14 @@ def handle_telemetry_dump() -> dict[str, Any]:
     }
 
 
+def handle_stats() -> dict[str, Any]:
+    """Return native process stats for the monitoring dashboard."""
+    return {
+        "type": "stats_result",
+        "payload": asdict(_get_pipeline().stats()),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Main loop — Native Messaging
 # ---------------------------------------------------------------------------
@@ -209,6 +217,7 @@ HANDLERS = {
     "update_prefs": handle_update_prefs,
     "list_models": lambda _payload: handle_list_models(),
     "telemetry_dump": lambda _payload: handle_telemetry_dump(),
+    "get_stats": lambda _payload: handle_stats(),
 }
 
 

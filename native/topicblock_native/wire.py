@@ -82,6 +82,16 @@ class NativeTelemetryEntry:
     latencyMs: float
     source: str
 
+@dataclass
+class NativeStats:
+    pid: int
+    cpuPercent: float
+    rssBytes: int
+    uptimeSeconds: float
+    cacheDbSizeBytes: int
+    embeddingCacheCount: int
+    topicVectorVersions: list[int] = field(default_factory=list)
+
 
 # ---- Wire message envelopes ----
 
@@ -106,6 +116,10 @@ class WireHealth:
 @dataclass
 class WireTelemetryDump:
     type: Literal["telemetry_dump"]
+
+@dataclass
+class WireGetStats:
+    type: Literal["get_stats"]
 
 @dataclass
 class WireClassifyResult:
@@ -136,4 +150,9 @@ class WireError:
 class WireTelemetryDumpResult:
     type: Literal["telemetry_dump_result"]
     payload: dict[str, Any]
+
+@dataclass
+class WireStatsResult:
+    type: Literal["stats_result"]
+    payload: NativeStats
 

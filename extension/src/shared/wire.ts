@@ -13,6 +13,7 @@ import type {
   ClassifyResponse,
   HealthStatus,
   ModelInfo,
+  NativeStats,
   NativeTelemetryEntry,
   UserPreferences,
 } from './protocols.js';
@@ -41,12 +42,17 @@ export interface WireTelemetryDump {
   type: 'telemetry_dump';
 }
 
+export interface WireGetStats {
+  type: 'get_stats';
+}
+
 export type ClientMessage =
   | WireClassify
   | WireUpdatePrefs
   | WireListModels
   | WireHealth
-  | WireTelemetryDump;
+  | WireTelemetryDump
+  | WireGetStats;
 
 // ---- Native → Client messages ----
 
@@ -80,13 +86,19 @@ export interface WireTelemetryDumpResult {
   payload: { entries: NativeTelemetryEntry[] };
 }
 
+export interface WireStatsResult {
+  type: 'stats_result';
+  payload: NativeStats;
+}
+
 export type NativeMessage =
   | WireClassifyResult
   | WirePrefsAck
   | WireModelsList
   | WireHealthResult
   | WireError
-  | WireTelemetryDumpResult;
+  | WireTelemetryDumpResult
+  | WireStatsResult;
 
 // Combined union for narrowing in handlers
 export type WireMessage = ClientMessage | NativeMessage;

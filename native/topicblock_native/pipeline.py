@@ -52,6 +52,7 @@ from topicblock_native.wire import (
     ClassifyRequest,
     ClassifyResponse,
     HealthStatus,
+    NativeStats,
     UserPreferences,
     Verdict,
 )
@@ -176,6 +177,63 @@ class Pipeline:
             loadedSentimentModel=self._sentiment_model.name,
             device=_DEVICE,  # type: ignore[arg-type]
             queueDepth=self._queue_depth,
+        )
+
+    def stats(self) -> NativeStats:
+        """Return process-level stats for the monitoring dashboard."""
+        import os
+
+        pid = os.getpid()
+
+        # CPU and memory via psutil (optional)
+        cpu_percent = 0.0
+        rss_bytes = 0
+        uptime_seconds = 0.0
+        try:
+            import psutil  # type: ignore[import-untyped]
+
+            proc = psutil.Process(pid)
+            cpu_percent = proc.cpu_percent(interval=0.0)
+            rss_bytes = proc.memory_info().rss
+            uptime_seconds = time.time() - proc.create_time()
+        except Exception:
+            # Fallback: try /proc on Linux, or just report 0
+            try:
+                import resource
+
+                rss_bytes = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+                # macOS reports in bytes, Linux in KB
+                import platform
+                if platform.system() == "Linux":
+                    rss_bytes *= 1024
+            except Exception:
+                pass
+
+        # Cache stats
+        cache_db_size = 0
+        try:
+            cache_path = Path("~/.topicblock/cache.db").expanduser()
+            if cache_path.exists():
+                cache_db_size = cache_path.stat().st_size
+        except Exception:
+            pass
+
+        embedding_count = 0
+        topic_versions: list[int] = []
+        try:
+            embedding_count = self._cache.size()
+            topic_versions = self._cache.get_topic_vector_versions()
+        except Exception:
+            pass
+
+        return NativeStats(
+            pid=pid,
+            cpuPercent=round(cpu_percent, 1),
+            rssBytes=rss_bytes,
+            uptimeSeconds=round(uptime_seconds, 1),
+            cacheDbSizeBytes=cache_db_size,
+            embeddingCacheCount=embedding_count,
+            topicVectorVersions=topic_versions,
         )
 
     def update_prefs(self, prefs: UserPreferences, prefs_version: int) -> None:

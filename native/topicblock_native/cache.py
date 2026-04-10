@@ -262,6 +262,13 @@ class EmbeddingCache:
         """Return the current number of cached segment embeddings."""
         return self._conn.execute("SELECT COUNT(*) FROM embeddings").fetchone()[0]
 
+    def get_topic_vector_versions(self) -> list[int]:
+        """Return a list of prefs_version values that have cached topic vectors."""
+        rows = self._conn.execute(
+            "SELECT prefs_version FROM topic_vectors ORDER BY prefs_version"
+        ).fetchall()
+        return [r[0] for r in rows]
+
     def clear(self) -> None:
         """Remove all cached segment embeddings (does not touch topic vectors)."""
         self._conn.execute("DELETE FROM embeddings")

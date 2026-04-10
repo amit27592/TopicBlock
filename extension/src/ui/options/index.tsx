@@ -554,8 +554,30 @@ function OptionsPage(): ReactElement {
             TopicBlock
           </h1>
           <span style={{ fontSize: 13, color: C.muted }}>Settings</span>
+          <button
+            onClick={() => {
+              const url = chrome.runtime.getURL('dashboard.html');
+              void chrome.tabs.create({ url });
+            }}
+            style={{
+              marginLeft: 'auto',
+              padding: '5px 14px',
+              background: 'linear-gradient(135deg, #6d28d9, #8b5cf6)',
+              color: 'white',
+              border: 'none',
+              borderRadius: 6,
+              cursor: 'pointer',
+              fontSize: 12,
+              fontWeight: 500,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+            }}
+          >
+            🔍 Live Monitor
+          </button>
           {showSaved && (
-            <span style={{ fontSize: 13, color: C.success, marginLeft: 'auto' }}>Saved ✓</span>
+            <span style={{ fontSize: 13, color: C.success }}>Saved ✓</span>
           )}
         </div>
 

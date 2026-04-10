@@ -9,6 +9,7 @@ import type {
   ClassifyResponse,
   HealthStatus,
   ModelInfo,
+  NativeStats,
   NativeTelemetryEntry,
   UserPreferences,
 } from './protocols.js';
@@ -26,7 +27,8 @@ export type ExtMessage =
   | { type: 'clear_telemetry' }
   | { type: 'record_override'; payload: TelemetryEntry }
   | { type: 'clear_verdict_cache' }
-  | { type: 'get_verdict_cache_stats' };
+  | { type: 'get_verdict_cache_stats' }
+  | { type: 'get_stats' };
 
 // ---- Responses from background → content scripts ----
 
@@ -38,6 +40,7 @@ export type ExtResponse =
   | { type: 'telemetry_result'; payload: TelemetryEntry[] }
   | { type: 'telemetry_dump_result'; payload: NativeTelemetryEntry[] }
   | { type: 'verdict_cache_stats'; payload: { size: number } }
+  | { type: 'stats_result'; payload: NativeStats }
   | { type: 'error'; message: string };
 
 /**

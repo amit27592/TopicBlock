@@ -186,5 +186,13 @@ chrome.runtime.onMessage.addListener(
       sendResponse({ type: 'verdict_cache_stats', payload: { size: verdictCache.size() } });
       return false;
     }
+
+    if (message.type === 'get_stats') {
+      nativeClient
+        .getStats()
+        .then((stats) => sendResponse({ type: 'stats_result', payload: stats }))
+        .catch((err: unknown) => sendResponse({ type: 'error', message: String(err) }));
+      return true;
+    }
   }
 );

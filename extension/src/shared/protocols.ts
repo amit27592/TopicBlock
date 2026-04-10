@@ -108,6 +108,17 @@ export interface ModelInfo {
   hwRequirements: { minRamMb: number; needsGpu: boolean };
 }
 
+// Resource metrics from the native Python process.
+export interface NativeStats {
+  pid: number;
+  cpuPercent: number;        // 0–100
+  rssBytes: number;          // resident set size in bytes
+  uptimeSeconds: number;     // process uptime
+  cacheDbSizeBytes: number;
+  embeddingCacheCount: number;
+  topicVectorVersions: number[];
+}
+
 // One timing record from the native pipeline. Stage names use a 'native.' prefix.
 export interface NativeTelemetryEntry {
   ts: number;        // Unix ms at entry recording
@@ -126,5 +137,6 @@ export interface INativeClient {
   health(): Promise<HealthStatus>;
   listModels(): Promise<ModelInfo[]>;
   telemetryDump(): Promise<NativeTelemetryEntry[]>;
+  getStats(): Promise<NativeStats>;
   dispose(): Promise<void>;
 }

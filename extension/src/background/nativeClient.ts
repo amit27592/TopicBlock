@@ -9,6 +9,7 @@ import type {
   HealthStatus,
   INativeClient,
   ModelInfo,
+  NativeStats,
   NativeTelemetryEntry,
   UserPreferences,
 } from '../shared/protocols.js';
@@ -85,6 +86,16 @@ export class NativeMessagingClient implements INativeClient {
       throw new Error(`Unexpected response type: ${response.type}`);
     }
     return response.payload.entries;
+  }
+
+  async getStats(): Promise<NativeStats> {
+    const id = this.nextId();
+    const msg: ClientMessage = { type: 'get_stats' };
+    const response = await this.send(id, msg);
+    if (response.type !== 'stats_result') {
+      throw new Error(`Unexpected response type: ${response.type}`);
+    }
+    return response.payload;
   }
 
   dispose(): Promise<void> {

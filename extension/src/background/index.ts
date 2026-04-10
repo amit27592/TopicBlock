@@ -56,11 +56,13 @@ chrome.runtime.onMessage.addListener(
       void (async () => {
         try {
           // Instrument the full native round-trip, recording one entry per segment.
+          const segmentTextMap = new Map(req.segments.map((s) => [s.id, s.body]));
           const res = await telemetry.measureBatch(
             'browser.classify_roundtrip',
             req.segments.map((s) => s.id),
             () => nativeClient.classify(req),
             (result) => new Map(result.verdicts.map((v) => [v.segmentId, v])),
+            segmentTextMap,
           );
 
           // Record blocked segments in the ring buffer for popup display.

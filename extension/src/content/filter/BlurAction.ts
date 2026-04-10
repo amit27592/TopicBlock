@@ -205,15 +205,15 @@ export const BlurAction: IFilterAction = {
     const overlay = overlays.get(el);
     if (!overlay) return;
 
+    const pos = originalPositions.get(el);
+    overlays.delete(el);
+    originalPositions.delete(el);
+
     requestAnimationFrame(() => {
       overlay.remove();
-      const pos = originalPositions.get(el);
       if (pos !== undefined) {
         el.style.position = pos;
       }
     });
-
-    overlays.delete(el);
-    originalPositions.delete(el);
   }
 };

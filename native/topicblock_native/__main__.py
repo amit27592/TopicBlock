@@ -147,6 +147,7 @@ def handle_classify(payload: dict[str, Any]) -> dict[str, Any]:
     )
 
     # Record individual segment latencies in telemetry.
+    segment_text = {s.id: s.body for s in req.segments}
     for verdict in response.verdicts:
         telemetry.record(
             TelemetryEntry(
@@ -154,6 +155,7 @@ def handle_classify(payload: dict[str, Any]) -> dict[str, Any]:
                 stage="native.segment_classify",
                 segmentId=verdict.segmentId,
                 latencyMs=verdict.latencyMs,
+                text=segment_text.get(verdict.segmentId),
             )
         )
 

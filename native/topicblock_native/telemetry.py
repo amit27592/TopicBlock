@@ -46,6 +46,7 @@ class TelemetryEntry:
     segmentId: str      # segment ID (or request ID for batch-level entries)
     latencyMs: float
     source: str = "native"  # constant — makes browser/native boundary explicit in exports
+    text: str | None = None  # segment body text for debugging
 
 
 def _init() -> None:

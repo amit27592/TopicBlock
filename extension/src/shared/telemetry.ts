@@ -30,6 +30,7 @@ export interface TelemetryEntry {
   latencyMs: number; // high-resolution duration from performance.now()
   source: 'browser';
   verdict?: Verdict;
+  text?: string;     // segment body text for debugging
 }
 
 const DEFAULT_MAX = 500;
@@ -77,6 +78,7 @@ export async function measureBatch<T>(
   segmentIds: string[],
   fn: () => T | Promise<T>,
   extractVerdicts?: (result: T) => Map<string, Verdict>,
+  textMap?: Map<string, string>,
 ): Promise<T> {
   const t0 = performance.now();
   const result = await fn();
@@ -87,6 +89,8 @@ export async function measureBatch<T>(
     const entry: TelemetryEntry = { ts, stage, segmentId, latencyMs, source: 'browser' };
     const v = verdictMap?.get(segmentId);
     if (v != null) entry.verdict = v;
+    const t = textMap?.get(segmentId);
+    if (t != null) entry.text = t;
     record(entry);
   }
   return result;

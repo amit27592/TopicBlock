@@ -21,6 +21,7 @@ import { computeSegmentId, getDomPath } from './segmentation/segmentId.js';
 import { get as getPrefs, getVersion, subscribe as subscribePrefs } from '../storage/preferences.js';
 import type { UserPreferences } from '../shared/protocols.js';
 import { BlurAction, HideAction, RemoveAction } from './filter/index.js';
+import type { ExtResponse } from '../shared/messaging.js';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -174,7 +175,7 @@ function sendBatch(segments: ContentSegment[]): void {
 
   chrome.runtime.sendMessage(
     { type: 'classify_segments', payload: request },
-    (response: ClassifyResponse | undefined) => {
+    (response: ExtResponse | undefined) => {
       if (chrome.runtime.lastError) {
         // Native client unavailable — fail open, no UI disruption
         console.debug(
@@ -183,8 +184,8 @@ function sendBatch(segments: ContentSegment[]): void {
         );
         return;
       }
-      if (response) {
-        handleVerdicts(response, segments);
+      if (response?.type === 'classify_result') {
+        handleVerdicts(response.payload, segments);
       }
     },
   );

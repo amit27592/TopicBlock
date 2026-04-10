@@ -210,7 +210,8 @@ function handleVerdicts(
 
   const segmentMap = new Map(segments.map(s => [s.id, s]));
 
-  for (const verdict of response.verdicts) {
+  const verdicts = Array.from(response.verdicts);
+  for (const verdict of verdicts) {
     if (verdict.blocked) {
       console.log(
         `[TopicBlock] blocked segment=${verdict.segmentId}`,

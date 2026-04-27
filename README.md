@@ -1,82 +1,117 @@
 # TopicBlock
 
-**TopicBlock** is a privacy-first, client-side ML browser extension designed for dynamic content filtering. It allows users to block or hide content based on arbitrary topics and sentiment without their data ever leaving their machine.
+TopicBlock is a privacy-first browser extension prototype for filtering web content by topic and sentiment. The extension handles the browser-facing work in TypeScript, while a local Python native service runs text extraction, topic matching, sentiment scoring, caching, and inference orchestration.
 
-##  Overview
+The goal is not to block ads or replace platform moderation. The goal is user-controlled filtering where page text stays on the user's machine.
 
-TopicBlock uses a **thin-client / fat-native** architecture. The browser extension handles lightweight tasks like DOM segmentation and user interaction, while a native Python component performs heavy lifting such as text extraction and machine learning inference (Topic & Sentiment analysis).
+![TopicBlock architecture](docs/topicblock-architecture.svg)
 
-- **Privacy-First**: All inference happens locally. No data is sent to external servers.
-- **Dynamic Filtering**: Use zero-shot classification to block topics on the fly without retraining models.
-- **Fail-Open**: If the native component is unavailable, web content renders normally—filtering is strictly additive.
+## Prototype Status
+
+TopicBlock is an active prototype. The architecture, protocol, site adapters, filter actions, native pipeline, cache, and model registry are implemented, but this is not packaged as a one-click consumer extension yet.
+
+Current validation status:
+
+- Extension typecheck: expected to pass with `npm run type-check`.
+- Extension tests: expected to pass with `npm run test`.
+- Extension build: expected to pass with `npm run build`.
+- Native tests: expected to pass with `pip install -e ".[dev]"` and `pytest`.
+- Full ML inference requires optional ML dependencies and local model downloads.
+
+## What It Does
+
+- Segments pages into content units on supported sites.
+- Sends extracted text to a local Python service through Chrome Native Messaging.
+- Runs local topic and sentiment analysis.
+- Applies user-selected actions such as blur, hide, or remove.
+- Fails open: if the native service is unavailable, the page renders normally.
+
+## What To Inspect First
+
+1. `extension/src/content/` - DOM segmentation, site adapters, and filter actions.
+2. `extension/src/background/nativeClient.ts` - browser-to-native communication.
+3. `extension/src/shared/protocols.ts` - shared wire contract.
+4. `native/topicblock_native/pipeline.py` - native orchestration.
+5. `native/topicblock_native/models/` - topic and sentiment model implementations.
+6. `native/tests/` and `extension/src/**/*.test.ts` - current test coverage.
 
 ## Architecture
 
-### 1. Browser Extension (TypeScript, Manifest V3)
-Located in `extension/`.
-- **DOM Segmentation**: Identifies content units on supported sites (Reddit, Hacker News, YouTube).
-- **Site Adapters**: Site-specific logic for content extraction.
-- **Filter Engine**: Applies "Hide", "Remove", or "Blur" actions to blocked content.
-- **Native Client**: Communicates with the Python component via Chrome Native Messaging.
+TopicBlock uses a thin-client / fat-native design:
 
-### 2. Native Component (Python)
-Located in `native/`.
-- **Text Preprocessing**: Cleans HTML/plain text and detects language (FastText).
-- **ML Inference**:
-  - **Topic Model**: Zero-shot embedding-based classification using `MiniLM-L6-v2` or `BGE-small`.
-  - **Sentiment Model**: Hybrid analysis using VADER (fast) or DistilBERT (accurate).
-- **Embedding Cache**: SQLite-backed LRU cache for high performance on repeated content.
+| Layer | Responsibility |
+| --- | --- |
+| Browser extension | UI, preferences, page segmentation, site adapters, and filter actions |
+| Native messaging client | Transport between the extension and local Python service |
+| Python native service | Text extraction, model registry, topic scoring, sentiment scoring, cache, and telemetry |
+| Local models | MiniLM or BGE topic embeddings; VADER or DistilBERT sentiment scoring |
+
+The extension currently includes adapters for Reddit, old Reddit, Hacker News, and YouTube-style content surfaces.
 
 ## Repository Structure
 
 ```text
-topicblock/
-├── extension/             # WebExtension (TypeScript)
-│   ├── src/
-│   │   ├── background/    # Service worker & native messaging client
-│   │   ├── content/       # DOM segmentation & site adapters
-│   │   ├── filter/        # Filter actions (Blur, Hide, Remove)
-│   │   ├── shared/        # Protocols & wire schema
-│   │   └── storage/       # Preferences & telemetry
-├── native/                # Native Inference Service (Python)
-│   ├── topicblock_native/
-│   │   ├── extraction/    # Text cleaning & normalization
-│   │   ├── models/        # Topic & Sentiment implementations
-│   │   ├── pipeline.py    # Orchestration
-│   │   └── cache.py       # SQLite LRU cache
-└── scripts/               # Schema codegen and build scripts
+extension/             TypeScript Manifest V3 browser extension
+  src/background/      Service worker and native client
+  src/content/         DOM segmentation, site adapters, and filter actions
+  src/shared/          Protocols and wire schema
+  src/storage/         Preferences and blocked item storage
+  src/ui/              Popup, options, and dashboard UI
+native/                Python native inference service
+  topicblock_native/   Extraction, models, pipeline, cache, server, telemetry
+  tests/               Native unit tests
+scripts/               Protocol/schema generation
+docs/                  Architecture and project visuals
 ```
 
-## Getting Started
+## Setup
 
-### Prerequisites
-- Node.js & npm (for the extension)
-- Python 3.10+ (for the native component)
-- `pnpm` (recommended for extension development)
+### Extension
 
-### Extension Setup
 ```bash
 cd extension
 npm install
+npm run type-check
+npm run test
 npm run build
 ```
-Load the `extension/dist` directory into your browser as an unpacked extension.
 
-### Native Component Setup
+Load `extension/dist` as an unpacked browser extension during local development.
+
+### Native Service
+
 ```bash
 cd native
-pip install -e .
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+pytest
 ```
 
-### Protocol Synchronisation
-The project uses a single source of truth for communication types. If you modify TypeScript protocols in `extension/src/shared/protocols.ts`, regenerate the Python dataclasses:
+Optional ML runtime:
+
 ```bash
-python scripts/gen_schema.py
+pip install -e ".[ml]"
 ```
 
+The ML extra installs heavier dependencies for local model inference. The dev test suite uses mocks where possible so contributors can validate the service without downloading every model.
 
 ## Design Principles
 
-1. **Protocol over implementation**: Swapping a model or transport layer requires zero changes to the rest of the system.
-2. **Fat Native**: Anything that *can* run natively, *does* run natively to save browser resources.
-3. **Measure everything**: Every stage of the pipeline is tracked via a local telemetry ring buffer.
+- Privacy first: content analysis runs locally.
+- User control: filtering is configured by the user, not by a remote service.
+- Fail open: broken native inference should not break browsing.
+- Protocol first: TypeScript and Python communicate through an explicit wire contract.
+- Prototype honesty: this repo shows the working architecture and tests, not a polished extension-store release.
+
+## Limitations
+
+- The project is not packaged for public browser-store installation yet.
+- Full ML inference may download sizeable models and requires local compute.
+- Site adapters are intentionally limited; new sites need adapter work.
+- Filtering quality depends on model choice, thresholds, and extracted text quality.
+- Native messaging installation manifests are environment-specific and may need local setup.
+
+## Authors
+
+TopicBlock is a joint project by Amit Kumar Gupta and Joshua Joenathan Thomas.
